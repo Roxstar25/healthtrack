@@ -4,6 +4,9 @@ let authToken = localStorage.getItem('token') || null;
 const app = document.getElementById('app');
 // API helper
 async function api(endpoint, options = {}) {
+  // Show loading state on body
+  document.body.classList.add('api-loading');
+  
   const url = `${API_URL}${endpoint}`;
   const config = {
     headers: {
@@ -15,10 +18,18 @@ async function api(endpoint, options = {}) {
   if (config.body && typeof config.body === 'object') {
     config.body = JSON.stringify(config.body);
   }
-  const res = await fetch(url, config);
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Request failed');
-  return data;
+  
+  try {
+    const res = await fetch(url, config);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Request failed');
+    return data;
+  } catch (err) {
+    console.error('API Error:', err);
+    throw err;
+  } finally {
+    document.body.classList.remove('api-loading');
+  }
 }
 
 // Routes
