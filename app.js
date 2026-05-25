@@ -1,7 +1,8 @@
-const API_URL = 'http://localhost:3001';
+// HealthTrack - Complete SPA
+const API_URL = 'http://localhost:3002';
 let authToken = localStorage.getItem('token') || null;
-
-// Helper: API fetch with auth
+const app = document.getElementById('app');
+// API helper
 async function api(endpoint, options = {}) {
   const url = `${API_URL}${endpoint}`;
   const config = {
@@ -33,17 +34,29 @@ function navigate(path) {
   window.location.hash = path;
 }
 
+// Header component
+function getHeader() {
+  return `
+    <header class="flex items-center justify-between" style="padding:1rem 2rem;background:var(--surface);border-bottom:1px solid var(--border);">
+      <a href="#/" style="font-size:1.5rem;font-weight:700;color:var(--primary);text-decoration:none;">HealthTrack</a>
+      <nav class="flex gap-4 items-center">
+        ${authToken ? `
+          <a href="#/metrics" style="color:var(--text);text-decoration:none;">Log Metrics</a>
+          <a href="#/reports" style="color:var(--text);text-decoration:none;">Reports</a>
+          <button onclick="logout()" class="btn" style="background:var(--border);color:var(--text);">Logout</button>
+        ` : `
+          <a href="#/login" style="color:var(--text);text-decoration:none;">Login</a>
+          <a href="#/register" class="btn btn-primary" style="text-decoration:none;">Get Started</a>
+        `}
+      </nav>
+    </header>
+  `;
+}
+
 // Dashboard
 async function renderDashboard() {
   app.innerHTML = `
-    <header class="flex items-center justify-between" style="padding:1rem 2rem;background:var(--surface);border-bottom:1px solid var(--border);">
-      <h1 style="font-size:1.5rem;font-weight:700;color:var(--primary);">HealthTrack</h1>
-      <nav class="flex gap-4">
-        <a href="#/metrics" style="color:var(--text);text-decoration:none;">Log Metrics</a>
-        <a href="#/reports" style="color:var(--text);text-decoration:none;">Reports</a>
-        ${authToken ? `<a href="#/" onclick="logout()" style="color:var(--text);text-decoration:none;">Logout</a>` : `<a href="#/login" style="color:var(--text);text-decoration:none;">Login</a>`}
-      </nav>
-    </header>
+    ${getHeader()}
     <main class="container" style="padding:2rem 1rem;">
       <h2 style="margin-bottom:1.5rem;">Dashboard</h2>
       <div id="stats" class="flex gap-4" style="margin-bottom:2rem;">
@@ -67,7 +80,15 @@ async function renderDashboard() {
       updateDashboard(metrics);
     } catch (err) {
       console.error('Failed to load metrics:', err);
+      document.getElementById('stats').innerHTML = '<div class="card" style="flex:1;text-align:center;color:var(--danger);">Failed to load data</div>';
     }
+  } else {
+    document.getElementById('stats').innerHTML = `
+      <div class="card" style="flex:1;text-align:center;padding:3rem;">
+        <p style="color:var(--text-light);margin-bottom:1rem;">Login to see your health data</p>
+        <a href="#/login" class="btn btn-primary" style="text-decoration:none;">Login</a>
+      </div>
+    `;
   }
 }
 
@@ -91,7 +112,6 @@ function updateDashboard(metrics) {
     `;
   }
   
-  // Render chart
   setTimeout(() => {
     const ctx = document.getElementById('weightChart');
     if (ctx && metrics.length > 0) {
@@ -192,12 +212,7 @@ function renderRegister() {
 // Metrics Form
 function renderMetrics() {
   app.innerHTML = `
-    <header class="flex items-center justify-between" style="padding:1rem 2rem;background:var(--surface);border-bottom:1px solid var(--border);">
-      <a href="#/" style="font-size:1.5rem;font-weight:700;color:var(--primary);text-decoration:none;">HealthTrack</a>
-      <nav class="flex gap-4">
-        <a href="#/reports" style="color:var(--text);text-decoration:none;">Reports</a>
-      </nav>
-    </header>
+    ${getHeader()}
     <main class="container" style="max-width:600px;padding:2rem 1rem;">
       <div class="card">
         <h2 style="margin-bottom:1.5rem;">Log Today's Metrics</h2>
@@ -243,20 +258,76 @@ function renderMetrics() {
   });
 }
 
+// Export functions
+window.exportPDF = async function() {
+  if (!authToken) {
+    alert('Please login first');
+    return;
+  }
+  try {
+    const metrics = await api('/api/metrics');
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    doc.setFontSize(20);
+    doc.text('HealthTrack Report', 20, 20);
+    doc.setFontSize(12);
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 20, 30);
+    
+    let y = 50;
+    metrics.forEach((m, i) => {
+      if (y > 250) {
+        doc.addPage();
+        y = 20;
+      }
+      doc.text(`${i + 1}. Date: ${new Date(m.date).toLocaleDateString()}`, 20, y);
+      doc.text(`   Weight: ${m.weight || '-'} kg | Sleep: ${m.sleep || '-'} h | Workout: ${m.workout || '-'} min`, 20, y + 7);
+      doc.text(`   Notes: ${m.notes || '-'}`, 20, y + 14);
+      y += 25;
+    });
+    
+    doc.save('healthtrack-report.pdf');
+  } catch (err) {
+    alert('Failed to export PDF: ' + err.message);
+  }
+};
+
+window.exportCSV = async function() {
+  if (!authToken) {
+    alert('Please login first');
+    return;
+  }
+  try {
+    const metrics = await api('/api/metrics');
+    const csv = Papa.unparse(metrics.map(m => ({
+      Date: new Date(m.date).toLocaleDateString(),
+      Weight: m.weight,
+      Sleep: m.sleep,
+      Workout: m.workout,
+      Notes: m.notes
+    })));
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'healthtrack-report.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  } catch (err) {
+    alert('Failed to export CSV: ' + err.message);
+  }
+};
+
 // Reports
-function renderReports() {
+async function renderReports() {
   app.innerHTML = `
-    <header class="flex items-center justify-between" style="padding:1rem 2rem;background:var(--surface);border-bottom:1px solid var(--border);">
-      <a href="#/" style="font-size:1.5rem;font-weight:700;color:var(--primary);text-decoration:none;">HealthTrack</a>
-      <nav class="flex gap-4">
-        <a href="#/metrics" style="color:var(--text);text-decoration:none;">Log Metrics</a>
-      </nav>
-    </header>
+    ${getHeader()}
     <main class="container" style="padding:2rem 1rem;">
       <h2 style="margin-bottom:1.5rem;">Reports</h2>
       <div class="flex gap-4" style="margin-bottom:2rem;">
-        <button class="btn btn-primary" onclick="alert('Export PDF coming soon!')">Export PDF</button>
-        <button class="btn btn-primary" onclick="alert('Export CSV coming soon!')">Export CSV</button>
+        <button class="btn btn-primary" onclick="exportPDF()">Export PDF</button>
+        <button class="btn btn-primary" onclick="exportCSV()">Export CSV</button>
       </div>
       <div class="card">
         <h3 style="margin-bottom:1rem;">Weekly Summary</h3>
@@ -266,6 +337,42 @@ function renderReports() {
       </div>
     </main>
   `;
+  
+  if (authToken) {
+    try {
+      const metrics = await api('/api/metrics');
+      renderSummaryChart(metrics);
+    } catch (err) {
+      console.error('Failed to load metrics:', err);
+    }
+  }
+}
+
+function renderSummaryChart(metrics) {
+  setTimeout(() => {
+    const ctx = document.getElementById('summaryChart');
+    if (ctx && metrics.length > 0) {
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: metrics.slice(0, 7).map(m => new Date(m.date).toLocaleDateString()).reverse(),
+          datasets: [{
+            label: 'Sleep (hours)',
+            data: metrics.slice(0, 7).map(m => m.sleep).reverse(),
+            backgroundColor: '#10b981'
+          }, {
+            label: 'Workout (min)',
+            data: metrics.slice(0, 7).map(m => m.workout).reverse(),
+            backgroundColor: '#3b82f6'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false
+        }
+      });
+    }
+  }, 100);
 }
 
 // Logout
