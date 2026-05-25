@@ -1,5 +1,5 @@
 // HealthTrack - Liquid Glass Edition
-const API_URL = 'http://localhost:3002';
+const API_URL = 'https://healthtrack-production-bfe3.up.railway.app';
 let authToken = localStorage.getItem('token') || null;
 const app = document.getElementById('app');
 
