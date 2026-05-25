@@ -93,3 +93,84 @@ input:focus, textarea:focus, select:focus {
   height: 300px;
   margin: 1rem 0;
 }
+/* Responsive Design */
+@media (max-width: 768px) {
+  .container {
+    padding: 0 0.75rem;
+  }
+  
+  .flex {
+    flex-direction: column;
+  }
+  
+  .flex.gap-4 {
+    gap: 0.75rem;
+  }
+  
+  header {
+    padding: 0.75rem 1rem !important;
+  }
+  
+  header nav {
+    gap: 0.75rem !important;
+  }
+  
+  header h1 {
+    font-size: 1.25rem !important;
+  }
+  
+  .card {
+    padding: 1rem;
+  }
+  
+  .chart-container {
+    height: 250px;
+  }
+  
+  main {
+    padding: 1rem 0.75rem !important;
+  }
+  
+  input, textarea, select {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+}
+
+/* Mobile menu button (hidden on desktop) */
+.mobile-menu-btn {
+  display: none;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .mobile-menu-btn {
+    display: block;
+  }
+  
+  .desktop-nav {
+    display: none;
+  }
+  
+  .mobile-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1rem;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  
+  .mobile-nav a {
+    padding: 0.75rem;
+    text-decoration: none;
+    color: var(--text);
+    border-radius: 0.5rem;
+  }
+  
+  .mobile-nav a:hover {
+    background: var(--bg);
+  }
+}
